@@ -32,40 +32,6 @@ On Windows, the intended production split is:
 - better remote control support for VPS or dedicated-host deployments
 - multilingual UI, integrated themes, and customizable cockpit layout
 
-## Changelog
-
-### v1.1.0
-
-- UX rework for better readability across `Cockpit` and `Instances`
-- small fixes and polish across the web control plane
-
-NEW:
-
-- can load `OGame` directly through the UI with proxy support
-- Discord webhook integration available from `Settings`
-
-### v1.0.1
-
-- fixed missing `Brain` translations so editor labels no longer fall back to inconsistent or partially untranslated strings
-- improved UI optimization in the web client for a lighter cockpit experience on some machines
-- improved log-stream timestamp readability with a brighter visual treatment
-- fixed an expedition edge case where auto expedition calculation could still send a support-only fleet such as `1 probe + 1 reaper` when the configured primary ship minimum could not actually be satisfied
-
-Before:
-
-- `MinPrimaryToSend` could be bypassed in some auto-expedition scenarios
-- the auto fleet builder could end up sending support ships even when the primary expedition ship count had effectively dropped to `0`
-
-After:
-
-- auto expeditions now enforce the configured primary-ship minimum
-- if an origin cannot satisfy the minimum for every fleet, the bot reduces the expedition count for that origin or skips it instead of sending an invalid fallback fleet
-- before-sleep expedition batching follows the same guardrails
-
-### v1.0.0-beta
-
-- initial beta release of TBot++
-
 ## Core idea
 
 If you already know TBot, the main mental model is:
