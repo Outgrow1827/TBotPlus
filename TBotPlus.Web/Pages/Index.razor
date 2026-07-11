@@ -58,6 +58,37 @@
 					</div>
 				</div>
 
+				<div class="card mb-3">
+					<div class="card-header">AutoFarm mode</div>
+					<div class="card-body">
+						<p class="text-muted small mb-2">Same worker, mutually exclusive modes: pick Normal, Fast Farm, or Off. FastFarmMode only has effect while Active is true, so the UI keeps them in sync instead of exposing two independent switches.</p>
+						@{
+							bool? autoFarmActive = _selectedSettings.SelectToken("AutoFarm.Active")?.Value<bool>();
+							bool fastFarmMode = _selectedSettings.SelectToken("AutoFarm.FastFarmMode")?.Value<bool>() ?? false;
+							string mode = autoFarmActive != true ? "off" : (fastFarmMode ? "fast" : "normal");
+						}
+						<div class="btn-group" role="group">
+							<input type="radio" class="btn-check" name="autofarm-mode" id="autofarm-mode-off" autocomplete="off"
+								checked="@(mode == "off")" disabled="@(autoFarmActive == null || _togglingPath == "AutoFarm")"
+								@onchange="() => SetAutoFarmMode(false, false)" />
+							<label class="btn btn-outline-secondary" for="autofarm-mode-off">Off</label>
+
+							<input type="radio" class="btn-check" name="autofarm-mode" id="autofarm-mode-normal" autocomplete="off"
+								checked="@(mode == "normal")" disabled="@(autoFarmActive == null || _togglingPath == "AutoFarm")"
+								@onchange="() => SetAutoFarmMode(true, false)" />
+							<label class="btn btn-outline-secondary" for="autofarm-mode-normal">Normal</label>
+
+							<input type="radio" class="btn-check" name="autofarm-mode" id="autofarm-mode-fast" autocomplete="off"
+								checked="@(mode == "fast")" disabled="@(autoFarmActive == null || _togglingPath == "AutoFarm")"
+								@onchange="() => SetAutoFarmMode(true, true)" />
+							<label class="btn btn-outline-secondary" for="autofarm-mode-fast">Fast Farm</label>
+						</div>
+						@if (autoFarmActive == null) {
+							<p class="text-muted mb-0 mt-2"><small>(not set)</small></p>
+						}
+					</div>
+				</div>
+
 				@RenderSection("Credentials", _selectedSettings["Credentials"] as JObject, maskKeys: new[] { "Password" })
 				@RenderSection("General", _selectedSettings["General"] as JObject)
 				@RenderSection("SleepMode", _selectedSettings["SleepMode"] as JObject)
@@ -90,8 +121,8 @@
 		new FeatureToggle { Path = "Brain.AutoRepatriate.Active", Label = "Brain - AutoRepatriate" },
 		new FeatureToggle { Path = "Brain.BuyOfferOfTheDay.Active", Label = "Brain - BuyOfferOfTheDay" },
 		new FeatureToggle { Path = "Expeditions.Active", Label = "Expeditions" },
-		new FeatureToggle { Path = "AutoFarm.Active", Label = "AutoFarm" },
-		new FeatureToggle { Path = "AutoFarm.FastFarmMode", Label = "AutoFarm - Fast Farm Mode" },
+		// AutoFarm.Active / AutoFarm.FastFarmMode are handled by the dedicated AutoFarm mode
+		// picker below (mutually exclusive by UI convention), not by the generic toggle list.
 		new FeatureToggle { Path = "AutoHarvest.Active", Label = "AutoHarvest" },
 		new FeatureToggle { Path = "AutoColonize.Active", Label = "AutoColonize" },
 		new FeatureToggle { Path = "AutoDiscovery.Active", Label = "AutoDiscovery" },
@@ -117,6 +148,29 @@
 		_selectedFileName = fileName;
 		_toggleError = null;
 		_selectedSettings = await SettingsReader.GetInstanceSettingsAsync(fileName);
+	}
+
+	private async Task SetAutoFarmMode(bool active, bool fastFarmMode) {
+		if (_selectedFileName == null)
+			return;
+
+		_togglingPath = "AutoFarm";
+		_toggleError = null;
+		try {
+			bool ok = await SettingsReader.SetBooleansAsync(_selectedFileName, new Dictionary<string, bool> {
+				["AutoFarm.Active"] = active,
+				["AutoFarm.FastFarmMode"] = fastFarmMode,
+			});
+			if (!ok) {
+				_toggleError = "Could not save AutoFarm mode: key not found in file.";
+				return;
+			}
+			_selectedSettings = await SettingsReader.GetInstanceSettingsAsync(_selectedFileName);
+		} catch (Exception ex) {
+			_toggleError = $"Could not save AutoFarm mode: {ex.Message}";
+		} finally {
+			_togglingPath = null;
+		}
 	}
 
 	private async Task OnToggleChanged(string path, bool value) {

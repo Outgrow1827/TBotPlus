@@ -211,7 +211,7 @@ TBot++ is especially useful if:
 
 ## This fork: TBotPlus.Web
 
-This fork adds `src/TBotPlus.Web/`, an independent, lightweight Blazor Server dashboard for TBot. It does not depend on `TBot++`'s backend or Cockpit — it reads a TBot deployment's `settings.json`, `instance_settings.json`, and daily CSV logs straight off disk, so it works against a plain TBot install with no control-plane API involved.
+This fork adds `TBotPlus.Web/` (see `TBotPlus.sln`), an independent, lightweight Blazor Server dashboard for TBot. It does not depend on `TBot++`'s backend or Cockpit — it reads a TBot deployment's `settings.json`, `instance_settings.json`, and daily CSV logs straight off disk, so it works against a plain TBot install with no control-plane API involved.
 
 ### What it adds on top of the base TBot web surface
 
@@ -223,7 +223,8 @@ This fork adds `src/TBotPlus.Web/`, an independent, lightweight Blazor Server da
 ### Project layout
 
 ```
-src/TBotPlus.Web/       Blazor Server app (the actual project)
+TBotPlus.sln
+TBotPlus.Web/            Blazor Server app (the actual project)
   Services/               File-reading/writing services (settings, logs, locale)
   Models/                 POCOs used by the pages/services
   Pages/                  Razor pages (Instances, Logs)
@@ -234,7 +235,7 @@ src/TBotPlus.Web/       Blazor Server app (the actual project)
 ### Running locally
 
 ```
-cd src/TBotPlus.Web
+cd TBotPlus.Web
 dotnet run
 ```
 

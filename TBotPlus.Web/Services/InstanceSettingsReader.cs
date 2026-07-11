@@ -52,17 +52,24 @@ namespace TBotPlus.Web.Services {
 
 		// Flips a single boolean identified by a JSONPath (e.g. "Brain.AutoDefence.Active") and writes
 		// the file back atomically (temp file + File.Replace) to minimize the corruption window.
-		public async Task<bool> SetBooleanAsync(string fileName, string jsonPath, bool value) {
+		public Task<bool> SetBooleanAsync(string fileName, string jsonPath, bool value) =>
+			SetBooleansAsync(fileName, new Dictionary<string, bool> { [jsonPath] = value });
+
+		// Same as SetBooleanAsync but applies every path in a single read-modify-write, so paired
+		// flags (e.g. AutoFarm.Active / AutoFarm.FastFarmMode kept mutually exclusive by the UI)
+		// never risk landing in an inconsistent combination from two separate writes.
+		public async Task<bool> SetBooleansAsync(string fileName, IDictionary<string, bool> values) {
 			string path = Path.Combine(_paths.BotOutputPath, fileName);
 			if (!File.Exists(path))
 				return false;
 
 			var root = JObject.Parse(await File.ReadAllTextAsync(path));
-			var token = root.SelectToken(jsonPath);
-			if (token == null)
-				return false;
-
-			token.Replace(new JValue(value));
+			foreach (var (jsonPath, value) in values) {
+				var token = root.SelectToken(jsonPath);
+				if (token == null)
+					return false;
+				token.Replace(new JValue(value));
+			}
 
 			string tempPath = path + ".tmp";
 			await File.WriteAllTextAsync(tempPath, root.ToString(Formatting.Indented));
