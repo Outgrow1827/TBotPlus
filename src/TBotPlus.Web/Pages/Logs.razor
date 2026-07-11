@@ -1,0 +1,94 @@
+@page "/logs"
+@inject LogFileReader LogReader
+@implements IDisposable
+
+<PageTitle>Logs</PageTitle>
+
+<h1>Logs</h1>
+
+<div class="row g-2 mb-3">
+	<div class="col-auto">
+		<input type="date" class="form-control" @bind="_date" @bind:after="ReloadAsync" />
+	</div>
+	<div class="col-auto">
+		<input type="text" class="form-control" placeholder="Search message..." @bind="_search" @bind:event="oninput" @bind:after="ReloadAsync" />
+	</div>
+	<div class="col-auto">
+		<select class="form-select" @bind="_level" @bind:after="ReloadAsync">
+			<option value="">All levels</option>
+			<option value="Verbose">Verbose</option>
+			<option value="Debug">Debug</option>
+			<option value="Information">Information</option>
+			<option value="Warning">Warning</option>
+			<option value="Error">Error</option>
+			<option value="Fatal">Fatal</option>
+		</select>
+	</div>
+	<div class="col-auto">
+		<div class="form-check form-switch mt-2">
+			<input class="form-check-input" type="checkbox" role="switch" @bind="_liveTail" id="liveTailSwitch" />
+			<label class="form-check-label" for="liveTailSwitch">Live tail (poll every 3s)</label>
+		</div>
+	</div>
+</div>
+
+@if (_entries == null) {
+	<p><em>Loading...</em></p>
+} else if (!_entries.Any()) {
+	<p><em>No log entries for this date/filter. Check TBotPaths:BotOutputPath in appsettings.json.</em></p>
+} else {
+	<table class="table table-sm table-striped">
+		<thead>
+			<tr>
+				<th>Time</th>
+				<th>Level</th>
+				<th>Sender</th>
+				<th>Message</th>
+			</tr>
+		</thead>
+		<tbody>
+			@foreach (var entry in _entries) {
+				<tr class="@LevelRowClass(entry.Type)">
+					<td class="text-nowrap">@entry.DateTime</td>
+					<td>@entry.Type</td>
+					<td>@entry.Sender</td>
+					<td>@entry.Message</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+}
+
+@code {
+	private DateTime _date = DateTime.Now.Date;
+	private string _search = "";
+	private string _level = "";
+	private bool _liveTail = true;
+	private List<LogEntry>? _entries;
+	private Timer? _pollTimer;
+
+	protected override async Task OnInitializedAsync() {
+		await ReloadAsync();
+		_pollTimer = new Timer(async _ => {
+			if (_liveTail)
+				await InvokeAsync(async () => {
+					await ReloadAsync();
+					StateHasChanged();
+				});
+		}, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+	}
+
+	private async Task ReloadAsync() {
+		_entries = await LogReader.ReadAsync(_date, _search, _level);
+	}
+
+	private static string LevelRowClass(string level) => level switch {
+		"Error" or "Fatal" => "table-danger",
+		"Warning" => "table-warning",
+		_ => ""
+	};
+
+	public void Dispose() {
+		_pollTimer?.Dispose();
+	}
+}

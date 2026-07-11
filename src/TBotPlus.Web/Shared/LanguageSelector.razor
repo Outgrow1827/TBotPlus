@@ -1,0 +1,77 @@
+@inject LocaleService Locale
+@inject IJSRuntime JS
+
+<div class="lang-selector" @onclick:stopPropagation="true">
+	<button class="lang-selector-toggle" @onclick="ToggleOpen">
+		@Locale.CurrentLanguage.NativeName (@Locale.CurrentLanguage.Code.ToUpperInvariant())
+	</button>
+
+	@if (isOpen)
+	{
+		<div class="lang-selector-panel">
+			<input class="lang-selector-search"
+			       @bind="searchText"
+			       @bind:event="oninput"
+			       placeholder="Search language..."
+			       @ref="searchInputRef" />
+
+			<ul class="lang-selector-list">
+				@foreach (var lang in FilteredLanguages)
+				{
+					<li>
+						<button class="lang-selector-item @(lang.Code == Locale.CurrentCode ? "active" : "")"
+						        @onclick="() => SelectAsync(lang.Code)">
+							<span class="lang-native">@lang.NativeName</span>
+							<span class="lang-name">@lang.Name</span>
+						</button>
+					</li>
+				}
+				@if (!FilteredLanguages.Any())
+				{
+					<li class="lang-selector-empty">No language found</li>
+				}
+			</ul>
+		</div>
+	}
+</div>
+
+@code {
+	private bool isOpen;
+	private string searchText = string.Empty;
+	private ElementReference searchInputRef;
+
+	private IEnumerable<Models.LanguageOption> FilteredLanguages =>
+		string.IsNullOrWhiteSpace(searchText)
+			? LocaleService.Catalog
+			: LocaleService.Catalog.Where(l =>
+				l.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+				l.NativeName.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+				l.Code.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+
+	protected override async Task OnInitializedAsync()
+	{
+		var stored = await JS.InvokeAsync<string?>("tbotplusLocale.get");
+		if (!string.IsNullOrWhiteSpace(stored))
+		{
+			Locale.SetCurrent(stored);
+		}
+	}
+
+	private async Task ToggleOpen()
+	{
+		isOpen = !isOpen;
+		if (isOpen)
+		{
+			searchText = string.Empty;
+			await Task.Delay(1);
+			await searchInputRef.FocusAsync();
+		}
+	}
+
+	private async Task SelectAsync(string code)
+	{
+		Locale.SetCurrent(code);
+		await JS.InvokeVoidAsync("tbotplusLocale.set", code);
+		isOpen = false;
+	}
+}

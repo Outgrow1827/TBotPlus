@@ -1,0 +1,16 @@
+# Local-only notes, never to be pushed
+_private/
+
+# Full local deployment of the third-party TBot++ product used as a reverse-engineering
+# reference (proprietary binaries, session-bridge runtime, real config/log output).
+# Never to be pushed.
+win-x64/
+
+# .NET build output
+[Bb]in/
+[Oo]bj/
+
+# IDE/editor
+.vs/
+.vscode/
+.idea/

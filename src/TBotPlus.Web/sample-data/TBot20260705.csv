@@ -1,0 +1,5 @@
+type,sender,datetime,message
+Information,AutoMine,05/07/2026 01:00:00,Running AutoMine on Homeworld
+Information,AutoFarm,05/07/2026 01:00:05,Running autofarm...
+Warning,Defender,05/07/2026 01:00:10,No attacks detected
+Error,AutoFarm,05/07/2026 01:00:15,Unable to attack: no slots available

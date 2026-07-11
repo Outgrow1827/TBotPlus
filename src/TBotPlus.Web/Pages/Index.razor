@@ -1,0 +1,192 @@
+@page "/"
+@inject InstanceSettingsReader SettingsReader
+
+<PageTitle>Instances</PageTitle>
+
+<h1>Instances</h1>
+<p class="text-muted">Feature toggles below are saved directly to instance_settings.json. Everything else is a read-only view.</p>
+
+@if (_instances == null) {
+	<p><em>Loading...</em></p>
+} else if (!_instances.Any()) {
+	<p><em>No instances found under the configured TBotPaths:BotOutputPath. Check appsettings.json.</em></p>
+} else {
+	<div class="row">
+		<div class="col-md-3">
+			<div class="list-group">
+				@foreach (var instance in _instances) {
+					<button type="button"
+						class="list-group-item list-group-item-action @(instance.FileName == _selectedFileName ? "active" : "")"
+						disabled="@(!instance.Exists)"
+						@onclick="() => SelectInstance(instance.FileName)">
+						@instance.Alias
+						@if (!instance.Exists) {
+							<span class="badge bg-danger ms-2">missing</span>
+						}
+					</button>
+				}
+			</div>
+		</div>
+		<div class="col-md-9">
+			@if (_selectedSettings == null) {
+				<p><em>Select an instance.</em></p>
+			} else {
+				<div class="card mb-3">
+					<div class="card-header">Feature toggles</div>
+					<div class="card-body">
+						<div class="row">
+							@foreach (var toggle in FeatureToggles) {
+								bool? current = _selectedSettings.SelectToken(toggle.Path)?.Value<bool>();
+								<div class="col-md-4 form-check form-switch mb-2">
+									<input class="form-check-input" type="checkbox" role="switch"
+										id="toggle-@toggle.Path"
+										checked="@(current ?? false)"
+										disabled="@(current == null || _togglingPath == toggle.Path)"
+										@onchange="e => OnToggleChanged(toggle.Path, (bool)e.Value!)" />
+									<label class="form-check-label" for="toggle-@toggle.Path">
+										@toggle.Label
+										@if (current == null) {
+											<span class="text-muted"> (not set)</span>
+										}
+									</label>
+								</div>
+							}
+						</div>
+						@if (_toggleError != null) {
+							<p class="text-danger mb-0">@_toggleError</p>
+						}
+					</div>
+				</div>
+
+				@RenderSection("Credentials", _selectedSettings["Credentials"] as JObject, maskKeys: new[] { "Password" })
+				@RenderSection("General", _selectedSettings["General"] as JObject)
+				@RenderSection("SleepMode", _selectedSettings["SleepMode"] as JObject)
+				@RenderSection("Defender", _selectedSettings["Defender"] as JObject)
+				@RenderSection("Expeditions", _selectedSettings["Expeditions"] as JObject)
+				@RenderSection("AutoFarm", _selectedSettings["AutoFarm"] as JObject)
+				@RenderSection("AutoHarvest", _selectedSettings["AutoHarvest"] as JObject)
+				@RenderSection("AutoColonize", _selectedSettings["AutoColonize"] as JObject)
+				@RenderSection("AutoDiscovery", _selectedSettings["AutoDiscovery"] as JObject)
+			}
+		</div>
+	</div>
+}
+
+@code {
+	// Active/Enabled flags exposed as toggles. Everything else in instance_settings.json stays
+	// read-only until a safe concurrent-write story exists (see InstanceSettingsReader).
+	private static readonly FeatureToggle[] FeatureToggles = new[] {
+		new FeatureToggle { Path = "SleepMode.Active", Label = "Sleep Mode" },
+		new FeatureToggle { Path = "Defender.Active", Label = "Defender" },
+		new FeatureToggle { Path = "Defender.SpyAttacker.Active", Label = "Defender - SpyAttacker" },
+		new FeatureToggle { Path = "Defender.SpyWatch.Active", Label = "Defender - SpyWatch" },
+		new FeatureToggle { Path = "Brain.Active", Label = "Brain" },
+		new FeatureToggle { Path = "Brain.AutoMine.Active", Label = "Brain - AutoMine" },
+		new FeatureToggle { Path = "Brain.AutoResearch.Active", Label = "Brain - AutoResearch" },
+		new FeatureToggle { Path = "Brain.LifeformAutoMine.Active", Label = "Brain - Lifeform AutoMine" },
+		new FeatureToggle { Path = "Brain.LifeformAutoResearch.Active", Label = "Brain - Lifeform AutoResearch" },
+		new FeatureToggle { Path = "Brain.AutoCargo.Active", Label = "Brain - AutoCargo" },
+		new FeatureToggle { Path = "Brain.AutoDefence.Active", Label = "Brain - AutoDefence" },
+		new FeatureToggle { Path = "Brain.AutoRepatriate.Active", Label = "Brain - AutoRepatriate" },
+		new FeatureToggle { Path = "Brain.BuyOfferOfTheDay.Active", Label = "Brain - BuyOfferOfTheDay" },
+		new FeatureToggle { Path = "Expeditions.Active", Label = "Expeditions" },
+		new FeatureToggle { Path = "AutoFarm.Active", Label = "AutoFarm" },
+		new FeatureToggle { Path = "AutoFarm.FastFarmMode", Label = "AutoFarm - Fast Farm Mode" },
+		new FeatureToggle { Path = "AutoHarvest.Active", Label = "AutoHarvest" },
+		new FeatureToggle { Path = "AutoColonize.Active", Label = "AutoColonize" },
+		new FeatureToggle { Path = "AutoDiscovery.Active", Label = "AutoDiscovery" },
+		new FeatureToggle { Path = "AutoDiscovery.PauseWhenArtifactsAbove", Label = "AutoDiscovery - Pause when artifacts above" },
+		new FeatureToggle { Path = "Watchdog.Active", Label = "Watchdog" },
+		new FeatureToggle { Path = "General.HideSensitiveDataInLogs", Label = "Hide sensitive data in logs" },
+	};
+
+	private List<InstanceSummary>? _instances;
+	private string? _selectedFileName;
+	private JObject? _selectedSettings;
+	private string? _togglingPath;
+	private string? _toggleError;
+
+	protected override async Task OnInitializedAsync() {
+		_instances = await SettingsReader.GetInstancesAsync();
+		var first = _instances.FirstOrDefault(i => i.Exists);
+		if (first != null)
+			await SelectInstance(first.FileName);
+	}
+
+	private async Task SelectInstance(string fileName) {
+		_selectedFileName = fileName;
+		_toggleError = null;
+		_selectedSettings = await SettingsReader.GetInstanceSettingsAsync(fileName);
+	}
+
+	private async Task OnToggleChanged(string path, bool value) {
+		if (_selectedFileName == null)
+			return;
+
+		_togglingPath = path;
+		_toggleError = null;
+		try {
+			bool ok = await SettingsReader.SetBooleanAsync(_selectedFileName, path, value);
+			if (!ok) {
+				_toggleError = $"Could not save '{path}': key not found in file.";
+				return;
+			}
+			_selectedSettings = await SettingsReader.GetInstanceSettingsAsync(_selectedFileName);
+		} catch (Exception ex) {
+			_toggleError = $"Could not save '{path}': {ex.Message}";
+		} finally {
+			_togglingPath = null;
+		}
+	}
+
+	// Flat key/value rendering of a top-level section. Nested objects/arrays are shown as formatted
+	// JSON rather than fully structured controls - good enough for a read-only V1 view.
+	private RenderFragment RenderSection(string title, JObject? section, string[]? maskKeys = null) => builder => {
+		if (section == null)
+			return;
+
+		builder.OpenElement(0, "div");
+		builder.AddAttribute(1, "class", "card mb-3");
+
+		builder.OpenElement(2, "div");
+		builder.AddAttribute(3, "class", "card-header");
+		builder.AddContent(4, title);
+		builder.CloseElement();
+
+		builder.OpenElement(5, "div");
+		builder.AddAttribute(6, "class", "card-body");
+
+		builder.OpenElement(7, "table");
+		builder.AddAttribute(8, "class", "table table-sm mb-0");
+		builder.OpenElement(9, "tbody");
+
+		int seq = 10;
+		foreach (var prop in section.Properties()) {
+			bool masked = maskKeys != null && maskKeys.Contains(prop.Name, StringComparer.OrdinalIgnoreCase);
+			string display = masked ? "••••••••" : FormatValue(prop.Value);
+
+			builder.OpenElement(seq++, "tr");
+			builder.OpenElement(seq++, "td");
+			builder.AddAttribute(seq++, "class", "fw-semibold");
+			builder.AddContent(seq++, prop.Name);
+			builder.CloseElement();
+			builder.OpenElement(seq++, "td");
+			builder.AddContent(seq++, display);
+			builder.CloseElement();
+			builder.CloseElement();
+		}
+
+		builder.CloseElement();
+		builder.CloseElement();
+		builder.CloseElement();
+		builder.CloseElement();
+	};
+
+	private static string FormatValue(JToken value) {
+		return value.Type switch {
+			JTokenType.Object or JTokenType.Array => value.ToString(Newtonsoft.Json.Formatting.None),
+			JTokenType.Null => "",
+			_ => value.ToString()
+		};
+	}
+}

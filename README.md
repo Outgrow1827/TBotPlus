@@ -206,3 +206,42 @@ TBot++ is especially useful if:
 - you want cleaner configuration than manual JSON edits
 - you want live visibility into queue, workers, timers, and runtime state
 - you want to control a remote TBot backend from your own machine
+
+---
+
+## This fork: TBotPlus.Web
+
+This fork adds `src/TBotPlus.Web/`, an independent, lightweight Blazor Server dashboard for TBot. It does not depend on `TBot++`'s backend or Cockpit — it reads a TBot deployment's `settings.json`, `instance_settings.json`, and daily CSV logs straight off disk, so it works against a plain TBot install with no control-plane API involved.
+
+### What it adds on top of the base TBot web surface
+
+- **Instances view** — lists every configured instance and shows its `instance_settings.json` grouped by section (Credentials with the password masked, General, SleepMode, Defender, Expeditions, AutoFarm, AutoHarvest, AutoColonize, AutoDiscovery, ...).
+- **Feature toggles** — flips the `Active`/`Enabled` flag of each feature (Defender and its SpyAttacker/SpyWatch sub-workers, Brain and its AutoMine/AutoResearch/Lifeform/AutoCargo/AutoDefence/AutoRepatriate/BuyOfferOfTheDay sub-workers, Expeditions, AutoFarm, AutoHarvest, AutoColonize, AutoDiscovery, Watchdog) directly from the browser, saved back to `instance_settings.json`. Also exposes the two newer flags added in this fork: AutoFarm's `FastFarmMode` and AutoDiscovery's `PauseWhenArtifactsAbove`. Every other field in the file stays read-only for now — see [Limitations](#limitations-tbotplusweb).
+- **Logs view** — reads the daily `TBot{yyyyMMdd}.csv` log file, with text/level/sender filters and an optional live-tail poll.
+- **Language selector** — a searchable dropdown in the top bar to pick the UI language. Defaults to English; the selection persists in the browser. Only English exists today, but the picker and the underlying locale-pack format (same shape as TBot's own custom-locale-pack contract: `Locale`, `Name`, `LocaleTag`, `Inherits`, `Translations`) are already in place for future translations.
+
+### Project layout
+
+```
+src/TBotPlus.Web/       Blazor Server app (the actual project)
+  Services/               File-reading/writing services (settings, logs, locale)
+  Models/                 POCOs used by the pages/services
+  Pages/                  Razor pages (Instances, Logs)
+  Shared/                 Layout + reusable components (nav menu, language selector)
+  sample-data/            Fixture settings.json / instance_settings.json / CSV for local dev
+```
+
+### Running locally
+
+```
+cd src/TBotPlus.Web
+dotnet run
+```
+
+`appsettings.json` points `TBotPaths:BotOutputPath` at `sample-data/` by default, so it runs against fixtures out of the box. To point it at a real TBot deployment, change `BotOutputPath` (in `appsettings.json` or an environment override) to that deployment's folder — the one containing `settings.json`.
+
+### Limitations (TBotPlus.Web) {#limitations-tbotplusweb}
+
+- Only the boolean `Active`/`Enabled`-style feature flags are editable. All other fields are read-only.
+- TBot's own `SettingsService` uses an in-process lock that doesn't coordinate with an external writer. If TBotPlus.Web and TBot happen to write `instance_settings.json` at the exact same instant, one write can be lost. TBot's `FileSystemWatcher` picks up the change on its next reload either way.
+- No authentication — run this behind your own access control if exposing it beyond localhost.

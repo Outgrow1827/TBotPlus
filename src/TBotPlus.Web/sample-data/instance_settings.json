@@ -1,0 +1,42 @@
+{
+	"Credentials": {
+		"Universe": "Sample",
+		"Email": "sample@example.com",
+		"Password": "not-a-real-secret",
+		"Language": "en"
+	},
+	"General": {
+		"Host": "localhost",
+		"Port": "8080",
+		"SlotsToLeaveFree": 1
+	},
+	"SleepMode": {
+		"Active": false,
+		"GoToSleep": "23:00",
+		"WakeUp": "07:00"
+	},
+	"Defender": {
+		"Active": true,
+		"CheckIntervalMin": 1,
+		"CheckIntervalMax": 5
+	},
+	"Expeditions": {
+		"Active": true,
+		"PrimaryShip": "LargeCargo",
+		"MinPrimaryToSend": 1000
+	},
+	"AutoFarm": {
+		"Active": true,
+		"NumProbes": 5,
+		"PreferedResource": "Metal"
+	},
+	"AutoHarvest": {
+		"Active": false
+	},
+	"AutoColonize": {
+		"Active": false
+	},
+	"AutoDiscovery": {
+		"Active": false
+	}
+}

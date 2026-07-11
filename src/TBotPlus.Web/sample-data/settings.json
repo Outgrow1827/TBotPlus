@@ -1,0 +1,17 @@
+{
+	"TelegramMessenger": {
+		"Active": false,
+		"API": "",
+		"ChatId": ""
+	},
+	"WebUI": {
+		"Enable": true,
+		"Urls": "http://localhost:9090"
+	},
+	"Instances": [
+		{
+			"Settings": "instance_settings.json",
+			"Alias": "Sample Instance"
+		}
+	]
+}
