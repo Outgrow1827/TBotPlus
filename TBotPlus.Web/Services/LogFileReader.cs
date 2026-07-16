@@ -5,9 +5,7 @@ using Microsoft.Extensions.Options;
 using TBotPlus.Web.Models;
 
 namespace TBotPlus.Web.Services {
-	// Read-only access to TBot's daily CSV log files, straight off disk - no dependency on TBot.WebUI
-	// or the SignalR log hub being available, so TBotPlus can show logs whether or not TBot's web
-	// server is running.
+	// Read-only access to TBot's daily CSV log files, straight off disk.
 	public class LogFileReader {
 		private readonly TBotPathsOptions _paths;
 
@@ -26,8 +24,7 @@ namespace TBotPlus.Web.Services {
 
 			using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 			using var reader = new StreamReader(stream);
-			// TBot's CSV header is lower-case ("type,sender,datetime,message"); match case-insensitively
-			// against the PascalCase LogEntry properties instead of requiring an exact name match.
+			// TBot's CSV header is lower-case; match case-insensitively against LogEntry's PascalCase properties.
 			var config = new CsvConfiguration(CultureInfo.InvariantCulture) {
 				PrepareHeaderForMatch = args => args.Header.ToLowerInvariant()
 			};

@@ -5,12 +5,8 @@ using TBotPlus.Web.Models;
 
 namespace TBotPlus.Web.Services {
 	// Mostly read-only access to TBot's settings.json / instance_settings.json, straight off disk.
-	// The only write path is SetBooleanAsync, used for the feature Active/Enabled toggles - full field
-	// editing is still deferred until a safe cross-process coordination story exists (TBot's own
-	// SettingsService lock is in-process only and can't arbitrate against an external writer). Flipping
-	// a single boolean while TBot is running is a best-effort operation: if TBot rewrites the same file
-	// in the same instant, one of the two writes gets lost. TBot's own FileSystemWatcher will pick up
-	// our change and reload it on its next settings-changed event.
+	// Only SetBooleanAsync/SetBooleansAsync write, for the feature Active/Enabled toggles - full field
+	// editing is deferred until a safe cross-process coordination story exists.
 	public class InstanceSettingsReader {
 		private readonly TBotPathsOptions _paths;
 
@@ -50,14 +46,12 @@ namespace TBotPlus.Web.Services {
 			return JObject.Parse(await File.ReadAllTextAsync(path));
 		}
 
-		// Flips a single boolean identified by a JSONPath (e.g. "Brain.AutoDefence.Active") and writes
-		// the file back atomically (temp file + File.Replace) to minimize the corruption window.
+		// Flips a single boolean identified by a JSONPath (e.g. "Brain.AutoDefence.Active").
 		public Task<bool> SetBooleanAsync(string fileName, string jsonPath, bool value) =>
 			SetBooleansAsync(fileName, new Dictionary<string, bool> { [jsonPath] = value });
 
-		// Same as SetBooleanAsync but applies every path in a single read-modify-write, so paired
-		// flags (e.g. AutoFarm.Active / AutoFarm.FastFarmMode kept mutually exclusive by the UI)
-		// never risk landing in an inconsistent combination from two separate writes.
+		// Applies several paths in one read-modify-write, so paired flags never land in an
+		// inconsistent combination from two separate writes.
 		public async Task<bool> SetBooleansAsync(string fileName, IDictionary<string, bool> values) {
 			string path = Path.Combine(_paths.BotOutputPath, fileName);
 			if (!File.Exists(path))

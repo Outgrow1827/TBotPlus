@@ -1,7 +1,5 @@
 namespace TBotPlus.Web.Models {
-	// Mirrors the "type,sender,datetime,message" CSV shape TBot's Serilog CSV sink writes
-	// (TBot{yyyyMMdd}.csv) - independently reimplemented here, not shared/copied code, since
-	// TBotPlus must not reference the TBot repo.
+	// Mirrors the "type,sender,datetime,message" CSV shape of TBot's daily log files.
 	public class LogEntry {
 		public string Type { get; set; } = "";
 		public string Sender { get; set; } = "";
